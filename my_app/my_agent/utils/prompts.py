@@ -35,11 +35,12 @@ CHOISE_TABLE_AND_COLUMNS_PROMPT = ChatPromptTemplate.from_messages([
     Вы аналитик данных, который выбирает релевантные столбцы из уже отобранных релевантных таблиц.
     Дана схема базы данных в формате словаря, где ключи — названия релевантных таблиц,
     а значения — списки всех столбцов в формате ["column='название столбца'; type='тип данных'", ...].
+    Также дан пример данных каждой релевантной таблицы - словарь, где ключи - названия релевантных таблиц, а значения - первые 5 строк соответствующей таблицы.
 
     Задача: выбрать только те столбцы из каждой таблицы, которые нужны для ответа на вопрос пользователя.
 
     Верните JSON с полями:
-    - relevant_tables: словарь релевантных таблиц и их релевантных колонок
+    - relevant_tables_with_rel_columns: словарь релевантных таблиц и их релевантных колонок
     - explanation: почему выбраны именно эти колонки (1 предложение)
 
     ПРАВИЛА ВЫБОРА:
@@ -51,11 +52,11 @@ CHOISE_TABLE_AND_COLUMNS_PROMPT = ChatPromptTemplate.from_messages([
 
     Пример:
     Вопрос: "Какая выручка по продуктам за 2023 год?"
-    Выбор: {'sales': ['product_id', 'quantity', 'price', 'order_date']}
+    Выбор: словарь, где ключ - 'sales', а значения - список из 'product_id', 'quantity', 'price', 'order_date'
     Объяснение: "Нужны quantity и price для вычисления выручки, product_id для группировки, order_date для фильтрации по году"
     '''),
     ("human",
-    "===Схема базы данных:\n{schema}\n\n===Вопрос пользователя:\n{question}\n\nОпредели релевантные столбцы:")
+    "===Схема базы данных:\n{schema}\n\n===Вопрос пользователя:\n{question}\n\n===Данные таблиц:\n{tables_info}\n\nОпредели релевантные столбцы:")
 ])
 
 
@@ -67,6 +68,8 @@ VALIDATE_SQL = ChatPromptTemplate.from_messages([
      '''
     Вы — ИИ-ассистент, который генерирует SQL-запросы на основе вопросов пользователя и схемы базы данных.
     Схема — словарь, где ключи — названия релевантных таблиц, значения — списки релевантных столбцов.
+    Также дан пример данных каждой релевантной таблицы - словарь, где ключи - названия релевантных таблиц, а значения - первые 5 строк соответствующей таблицы.
+
     
     Если предоставлена sql_error_info — это ошибки выполнения предыдущего SQL-запроса. 
     Учтите их при выборе столбцов (исправьте проблемы с типами данных, отсутствующими столбцами и т.д.).
@@ -76,10 +79,10 @@ VALIDATE_SQL = ChatPromptTemplate.from_messages([
     - explanation: краткая логика запроса (1-2 предложения)
 
     ПРАВИЛА:
-    1. ПРОПУСТИТЕ ВСЕ СТРОКИ, ГДЕ ЛЮБОЙ СТОЛБЕЦ = NULL или "N/A" или ""
-    2. Все имена таблиц и столбцов в обратных кавычках `table`.`column`
-    3. Используйте только столбцы из предоставленной схемы
-    4. Группируйте и сортируйте логично для вопроса
+    1. Все имена таблиц и столбцов в обратных кавычках `table`.`column`
+    2. Используйте только столбцы из предоставленной схемы
+    3. Группируйте и сортируйте логично для вопроса
+    4. Используя точно такой же язык и терминологию, как в исходной базе данных, без какого-либо перевода
     
     ПРАВИЛА ВЫБОРА:
     1. SELECT: столбцы для результата или агрегации (SUM, COUNT, AVG)
@@ -90,11 +93,11 @@ VALIDATE_SQL = ChatPromptTemplate.from_messages([
 
     Примеры:
     1. Вопрос: "Какой продукт продается лучше всего?"
-       sql_request: "SELECT `product_name`, SUM(`quantity`) as total_quantity FROM `sales` WHERE `product_name` IS NOT NULL AND `quantity` IS NOT NULL AND `product_name` != '' AND `quantity` != '' AND `product_name` != 'N/A' AND `quantity` != 'N/A' GROUP BY `product_name` ORDER BY total_quantity DESC LIMIT 1"
+       sql_request: "SELECT `product_name`, SUM(`quantity`) as total_quantity FROM `sales` GROUP BY `product_name` ORDER BY total_quantity DESC LIMIT 1"
        explanation: "Группируем продажи по продукту, суммируем количество, сортируем по убыванию и берем топ-1"
 
     2. Вопрос: "Общая выручка по продуктам?"
-       sql_request: "SELECT `product_name`, SUM(`quantity` * `price`) as total_revenue FROM `sales` WHERE `product_name` IS NOT NULL AND `quantity` IS NOT NULL AND `price` IS NOT NULL AND `product_name` != '' AND `quantity` != '' AND `price` != '' AND `product_name` != 'N/A' AND `quantity` != 'N/A' AND `price` != 'N/A' GROUP BY `product_name` ORDER BY total_revenue DESC"
+       sql_request: "SELECT `product_name`, SUM(`quantity` * `price`) as total_revenue FROM `sales` GROUP BY `product_name` ORDER BY total_revenue DESC"
        explanation: "Вычисляем выручку как quantity*price, группируем по продукту, исключаем некорректные данные"
        
     Пример с ошибкой:
@@ -103,11 +106,11 @@ VALIDATE_SQL = ChatPromptTemplate.from_messages([
     
     '''),
     ("human",
-     "===Схема базы данных:\n{schema}\n\n===Вопрос пользователя:\n{question}\n\n===Ошибка SQL (может быть пустой):\n{sql_error_info}\n\n{stop_words}Определи релевантные столбцы:")
+     "===Схема базы данных:\n{schema}\n\n===Вопрос пользователя:\n{question}\n\n===Ошибка SQL (может быть пустой):\n{sql_error_info}\n\n{stop_words}===Данные таблиц:\n{tables_info}\n\nОпредели релевантные столбцы:")
 ])
 
 
-
+    # 1. ПРОПУСТИТЕ ВСЕ СТРОКИ, ГДЕ ЛЮБОЙ СТОЛБЕЦ РАВЕН NULL или "N/A" или "".
 
 
 CHECK_SQL = ChatPromptTemplate.from_messages([
@@ -117,9 +120,10 @@ CHECK_SQL = ChatPromptTemplate.from_messages([
     
     Задача: проверить SQL-запрос на корректность и вернуть структурированный JSON в формате модели CheckSQL:
     - sql_request_is_valid: true/false (синтаксическая корректность + соответствие схеме)
-    - explanation: проблемы SQL или подтверждение корректности (1-2 предложения)
+    - explanation: проблемы SQL (1-2 предложения)
     
     ПРОВЕРКИ:
+    0. Проанализировать ошибку предыдущего запроса
     1. Все таблицы и столбцы существуют в схеме
     2. Имена в обратных кавычках: `table`.`column`
     3. Корректный синтаксис SELECT/GROUP BY/WHERE/JOIN
@@ -127,13 +131,11 @@ CHECK_SQL = ChatPromptTemplate.from_messages([
     5. Нет дублирующихся алиасов/имен
     
     Схема: словарь, где ключи - релевантные таблицы, значения - список релевантных столбцов.
-    
-    Примеры:
-    {"sql_request_is_valid": true, "explanation": "Запрос корректен: все столбцы существуют, синтаксис верный"}
-    {"sql_request_is_valid": false, "explanation": "Отсутствует столбец 'invalid_col' в таблице 'sales'"}
+    Также дан пример данных каждой релевантной таблицы - словарь, где ключи - названия релевантных таблиц, а значения - первые 5 строк соответствующей таблицы.
+
     '''),
     ("human", 
-     "===Схема базы данных:\n{schema}\n\n===Сгенерированный SQL-запрос:\n{sql_query}\n\nПроверьте SQL и верните JSON в формате CheckSQL:")
+     "===Схема базы данных:\n{schema}\n\n===Сгенерированный SQL-запрос:\n{sql_request}\n\n===Ошибка предыдущего запроса:\n{sql_error_info}\n\n===Данные таблиц:\n{tables_info}\n\nПроверьте SQL и верните JSON в формате CheckSQL:")
 ])
 
 

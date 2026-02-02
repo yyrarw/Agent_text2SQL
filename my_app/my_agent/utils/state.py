@@ -10,6 +10,7 @@ class State(TypedDict):
     table_counter: Annotated[int, add]
     sql_generate_count: Annotated[int, add]
     relevant_tables: Dict[str, List[str]]
+    tables_info: Dict[str, str]
     relevant_tables_with_rel_columns: Dict[str, List[str]]
     sql_request: str
     sql_request_is_valid: bool
