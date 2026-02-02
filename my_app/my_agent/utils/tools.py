@@ -31,7 +31,7 @@ class AgentTools:
             
             else:
                 print('В базе данных нет подходящей информации:', table.explanation)
-                return {'error': 'TableError'}
+                return {'error': 'TableError', 'table_counter': state.get('table_counter', 0)}
             
         except Exception as e:
             print(f'Ошибка структурированного вывода, попробуйте использовать модель, поддерживающую ToosCallings и StructuredOutput:\n{e}')
@@ -82,7 +82,7 @@ class AgentTools:
         print('------------------------AIMassage------------------------\n')
         print(sql_response.explanation)
             
-        return {'sql_request': sql_response.sql_request, 'sql_generate_count': state.get('sql_generate_count', 0) + 1}
+        return {'sql_request': sql_response.sql_request, 'sql_generate_count': state.get('sql_generate_count', 0)}
             
     
     
@@ -116,6 +116,7 @@ class AgentTools:
         checked_sql = structured_llm.invoke(
             prompt=prompt,
             question=question,
+            sql_error_info=state['sql_error_info'],
             schema=state['relevant_tables_with_rel_columns']
         )
         

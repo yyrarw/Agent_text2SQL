@@ -1,12 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
+from langchain.chat_models import init_chat_model
 
 class LLMManager:
     def __init__(self, url):
-        self.llm = ChatOpenAI(
-            base_url=f"http://{url}/v1",
-            api_key='lm-studio'
-        )
+        self.llm = init_chat_model("gpt-4o-mini")
+        self.url = url
 
     def invoke(self, prompt: ChatPromptTemplate, **kwargs) -> str:
         messages = prompt.format_messages(**kwargs)
