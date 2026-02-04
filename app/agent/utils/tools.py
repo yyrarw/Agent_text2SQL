@@ -1,7 +1,7 @@
-from data_prepare import DataBaseManager
-from llm_prepare import LLMManager
-from state import ChooseTable, ChooseTableColumns, ValidSQL, CheckSQL
-from prompts import CHOISE_TABLE_PROMPT, CHOISE_TABLE_AND_COLUMNS_PROMPT, VALIDATE_SQL, CHECK_SQL, ANSWER
+from .data_prepare import DataBaseManager
+from .llm_prepare import LLMManager
+from .state import ChooseTable, ChooseTableColumns, ValidSQL, CheckSQL
+from .prompts import CHOISE_TABLE_PROMPT, CHOISE_TABLE_AND_COLUMNS_PROMPT, VALIDATE_SQL, CHECK_SQL, ANSWER
 from langchain_core.output_parsers.json import JsonOutputParser
 
 
